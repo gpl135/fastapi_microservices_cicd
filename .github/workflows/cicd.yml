@@ -4,14 +4,18 @@ on:
   push:
     branches:
       - main
+
   pull_request:
     branches:
       - main
+
   workflow_dispatch:
 
 jobs:
+
   test:
     name: Test ${{ matrix.service }}
+
     runs-on: ubuntu-latest
 
     strategy:
@@ -22,6 +26,7 @@ jobs:
           - inventory-service
 
     steps:
+
       - name: Checkout Code
         uses: actions/checkout@v4
 
@@ -39,11 +44,17 @@ jobs:
 
       - name: Run Tests
         working-directory: ${{ matrix.service }}
-        run: pytest tests
+        env:
+          PYTHONPATH: .
+        run: |
+          pytest tests
+
 
   docker-build:
     name: Build ${{ matrix.service }}
+
     needs: test
+
     runs-on: ubuntu-latest
 
     strategy:
@@ -54,11 +65,17 @@ jobs:
           - inventory-service
 
     steps:
+
       - name: Checkout Code
         uses: actions/checkout@v4
 
       - name: Build Docker Image
-        run: docker build -t ${{ matrix.service }}:${{ github.sha }} ./${{ matrix.service }}
+        run: |
+          docker build \
+            -t ${{ matrix.service }}:${{ github.sha }} \
+            ./${{ matrix.service }}
 
       - name: Show Docker Images
-        run: docker images
+        run: |
+          docker images
+
