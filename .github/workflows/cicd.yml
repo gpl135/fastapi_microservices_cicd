@@ -1,0 +1,162 @@
+```yaml
+name: FastAPI Microservices CI/CD
+
+on:
+  push:
+    branches:
+      - main
+
+  pull_request:
+    branches:
+      - main
+
+  workflow_dispatch:
+
+# Required for GitHub OIDC authentication with AWS
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  AWS_REGION: ap-south-1
+
+jobs:
+
+  # ==========================================================
+  # 1. RUN PYTHON TESTS
+  # ==========================================================
+  test:
+    name: Test ${{ matrix.service }}
+
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        service:
+          - order-service
+          - payment-service
+          - inventory-service
+
+    steps:
+
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r ${{ matrix.service }}/requirements.txt
+          pip install pytest
+
+      - name: Run Tests
+        run: |
+          pytest ${{ matrix.service }}/tests
+
+
+  # ==========================================================
+  # 2. BUILD DOCKER IMAGES
+  # ==========================================================
+  docker-build:
+    name: Build ${{ matrix.service }}
+
+    needs: test
+
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        service:
+          - order-service
+          - payment-service
+          - inventory-service
+
+    steps:
+
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Build Docker Image
+        run: |
+          docker build \
+            -t ${{ matrix.service }}:${{ github.sha }} \
+            ./${{ matrix.service }}
+
+      - name: Show Docker Images
+        run: |
+          docker images
+
+
+  # ==========================================================
+  # 3. LOGIN TO AWS AND PUSH IMAGES TO ECR
+  # ==========================================================
+  push-to-ecr:
+    name: Push ${{ matrix.service }} to ECR
+
+    needs: docker-build
+
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        service:
+          - order-service
+          - payment-service
+          - inventory-service
+
+    steps:
+
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      # ------------------------------------------------------
+      # Authenticate GitHub Actions with AWS using OIDC
+      # ------------------------------------------------------
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_GITHUB_ACTIONS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      # ------------------------------------------------------
+      # Login to Amazon ECR
+      # ------------------------------------------------------
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      # ------------------------------------------------------
+      # Build Docker image
+      # ------------------------------------------------------
+      - name: Build Docker Image
+        run: |
+          docker build \
+            -t ${{ steps.login-ecr.outputs.registry }}/${{ matrix.service }}:${{ github.sha }} \
+            ./${{ matrix.service }}
+
+      # ------------------------------------------------------
+      # Push Docker image to ECR
+      # ------------------------------------------------------
+      - name: Push Docker Image to ECR
+        run: |
+          docker push \
+            ${{ steps.login-ecr.outputs.registry }}/${{ matrix.service }}:${{ github.sha }}
+
+      # ------------------------------------------------------
+      # Also tag as latest
+      # ------------------------------------------------------
+      - name: Tag Latest
+        run: |
+          docker tag \
+            ${{ steps.login-ecr.outputs.registry }}/${{ matrix.service }}:${{ github.sha }} \
+            ${{ steps.login-ecr.outputs.registry }}/${{ matrix.service }}:latest
+
+      - name: Push Latest Image
+        run: |
+          docker push \
+            ${{ steps.login-ecr.outputs.registry }}/${{ matrix.service }}:latest
+```
