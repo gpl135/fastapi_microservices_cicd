@@ -11,6 +11,13 @@ on:
 
   workflow_dispatch:
 
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  AWS_REGION: us-east-1
+
 jobs:
 
   test:
@@ -49,9 +56,8 @@ jobs:
         run: |
           pytest tests
 
-
-  docker-build:
-    name: Build ${{ matrix.service }}
+  docker-build-push:
+    name: Build and Push ${{ matrix.service }}
 
     needs: test
 
@@ -69,13 +75,24 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_GITHUB_ACTIONS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
       - name: Build Docker Image
         run: |
           docker build \
-            -t ${{ matrix.service }}:${{ github.sha }} \
+            -t ${{ steps.login-ecr.outputs.registry }}/${{ matrix.service }}:${{ github.sha }} \
             ./${{ matrix.service }}
 
-      - name: Show Docker Images
+      - name: Push Docker Image
         run: |
-          docker images
+          docker push \
+            ${{ steps.login-ecr.outputs.registry }}/${{ matrix.service }}:${{ github.sha }}
 
