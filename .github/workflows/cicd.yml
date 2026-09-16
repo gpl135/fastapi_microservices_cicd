@@ -1,4 +1,5 @@
-name: AWS OIDC Authentication Test
+```yaml
+name: AWS OIDC Debug
 
 on:
   push:
@@ -12,11 +13,13 @@ permissions:
   contents: read
 
 jobs:
-  aws-auth:
-    name: Test AWS OIDC Authentication
+  oidc-debug:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Debug GitHub OIDC Token
+        uses: github/actions-oidc-debugger@main
+
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v5
         with:
@@ -26,3 +29,4 @@ jobs:
       - name: Verify AWS Identity
         run: |
           aws sts get-caller-identity
+```
