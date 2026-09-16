@@ -1,4 +1,4 @@
-name: AWS OIDC Test
+name: CI/CD Pipeline
 
 on:
   push:
@@ -10,18 +10,47 @@ permissions:
   id-token: write
   contents: read
 
+env:
+  AWS_REGION: ap-east-1
+  AWS_ACCOUNT_ID: "412008878951"
+  ECR_REGISTRY: "412008878951.dkr.ecr.ap-east-1.amazonaws.com"
+
 jobs:
   oidc:
+    name: AWS OIDC and ECR Test
     runs-on: ubuntu-latest
 
     steps:
-      - name: Configure AWS Credentials
+      # Step 1: Checkout source code
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      # Step 2: Authenticate GitHub Actions with AWS using OIDC
+      - name: Configure AWS Credentials 
         uses: aws-actions/configure-aws-credentials@v6.3.0
         with:
           role-to-assume: ${{ secrets.AWS_GITHUB_ACTIONS_ROLE_ARN }}
-          aws-region: ap-south-1
+          aws-region: ${{ env.AWS_REGION }}
           audience: sts.amazonaws.com
 
+      # Step 3: Verify AWS identity
       - name: Verify AWS Identity
         run: |
           aws sts get-caller-identity
+
+      # Step 4: Login to Amazon ECR
+      - name: Login to Amazon ECR
+        run: |
+          aws ecr get-login-password \
+            --region $AWS_REGION | \
+            docker login \
+            --username AWS \
+            --password-stdin \
+            $ECR_REGISTRY
+
+      # Step 5: Verify ECR repositories
+      - name: Verify ECR Repositories
+        run: |
+          aws ecr describe-repositories \
+            --repository-names order-service payment-service inventory-service \
+            --region $AWS_REGION
