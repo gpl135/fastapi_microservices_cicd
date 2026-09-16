@@ -1,34 +1,25 @@
-name: Debug AWS GitHub OIDC
+name: FastAPI CI/CD
 
 on:
   push:
     branches:
       - main
 
-  workflow_dispatch:
-
 permissions:
-  contents: read
   id-token: write
+  contents: read
 
 env:
-  AWS_REGION: us-east-1
+  AWS_REGION: ap-south-1
 
 jobs:
-
-  debug-oidc:
-
+  deploy:
     runs-on: ubuntu-latest
 
     steps:
 
-      - name: Show GitHub Context
-        run: |
-          echo "Repository : ${{ github.repository }}"
-          echo "Ref        : ${{ github.ref }}"
-          echo "Branch     : ${{ github.ref_name }}"
-          echo "Event      : ${{ github.event_name }}"
-          echo "Actor      : ${{ github.actor }}"
+      - name: Checkout source
+        uses: actions/checkout@v4
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -39,3 +30,7 @@ jobs:
       - name: Verify AWS Identity
         run: |
           aws sts get-caller-identity
+
+      - name: Verify AWS Region
+        run: |
+          aws configure get region
