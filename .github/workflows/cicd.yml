@@ -1,4 +1,4 @@
-name: AWS OIDC Test
+name: OIDC Claims Test
 
 on:
   push:
@@ -11,19 +11,42 @@ permissions:
   contents: read
 
 jobs:
-  test:
+  oidc:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Test Trigger
-        run: echo "Workflow triggered"
-
-      - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v6.3.0
-        with:
-          role-to-assume: ${{ secrets.AWS_GITHUB_ACTIONS_ROLE_ARN }}
-          aws-region: ap-south-1
-
-      - name: Verify AWS Identity
+      - name: Inspect OIDC Claims
+        shell: bash
         run: |
-          aws sts get-caller-identity
+          python - <<'PY'
+          import os
+          import base64
+          import json
+          import urllib.request
+
+          url = os.environ["ACTIONS_ID_TOKEN_REQUEST_URL"]
+          token_request = urllib.request.Request(
+              url + "&audience=sts.amazonaws.com",
+              headers={
+                  "Authorization":
+                  "bearer " + os.environ["ACTIONS_ID_TOKEN_REQUEST_TOKEN"]
+              }
+          )
+
+          response = urllib.request.urlopen(token_request)
+          data = json.load(response)
+
+          token = data["value"]
+          payload = token.split(".")[1]
+          payload += "=" * (-len(payload) % 4)
+
+          claims = json.loads(
+              base64.urlsafe_b64decode(payload)
+          )
+
+          print("AUDIENCE:")
+          print(claims.get("aud"))
+
+          print("SUBJECT:")
+          print(claims.get("sub"))
+          PY
