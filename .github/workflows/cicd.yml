@@ -1,4 +1,3 @@
-```yaml
 name: FastAPI Microservices CI/CD
 
 on:
@@ -121,4 +120,4 @@ jobs:
       - name: Show Docker Images
         run: |
           docker images
-```
+
