@@ -1,16 +1,6 @@
-name: FastAPI CI/CD
-
-on:
-  push:
-    branches:
-      - main
-
 permissions:
   id-token: write
   contents: read
-
-env:
-  AWS_REGION: ap-south-1
 
 jobs:
   deploy:
@@ -18,19 +8,14 @@ jobs:
 
     steps:
 
-      - name: Checkout source
+      - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Debug OIDC
+        uses: github/actions-oidc-debugger@main
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_GITHUB_ACTIONS_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
-
-      - name: Verify AWS Identity
-        run: |
-          aws sts get-caller-identity
-
-      - name: Verify AWS Region
-        run: |
-          aws configure get region
