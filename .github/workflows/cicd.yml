@@ -1,4 +1,4 @@
-name: Test AWS GitHub OIDC
+name: Debug AWS GitHub OIDC
 
 on:
   push:
@@ -16,16 +16,19 @@ env:
 
 jobs:
 
-  test-oidc:
-
-    name: Test AWS OIDC
+  debug-oidc:
 
     runs-on: ubuntu-latest
 
     steps:
 
-      - name: Checkout Code
-        uses: actions/checkout@v4
+      - name: Show GitHub Context
+        run: |
+          echo "Repository : ${{ github.repository }}"
+          echo "Ref        : ${{ github.ref }}"
+          echo "Branch     : ${{ github.ref_name }}"
+          echo "Event      : ${{ github.event_name }}"
+          echo "Actor      : ${{ github.actor }}"
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -34,6 +37,5 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Verify AWS Identity
-      
         run: |
           aws sts get-caller-identity
