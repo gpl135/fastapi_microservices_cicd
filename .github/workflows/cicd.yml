@@ -52,5 +52,5 @@ jobs:
       - name: Verify ECR Repositories
         run: |
           aws ecr describe-repositories \
-            --repository-names order-service payment-service inventory-service \
+            --repository-names order-service payment_service inventory_service \
             --region $AWS_REGION
