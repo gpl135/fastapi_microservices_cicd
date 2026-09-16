@@ -1,0 +1,125 @@
+
+name: FastAPI Microservices CI/CD
+
+on:
+  push:
+    branches:
+      - main
+
+  pull_request:
+    branches:
+      - main
+
+  workflow_dispatch:
+
+# Required for GitHub OIDC
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  AWS_REGION: us-east-1
+
+
+jobs:
+
+  # ==========================================
+  # JOB 1: TEST ALL MICROSERVICES
+  # ==========================================
+  test:
+
+    name: Test ${{ matrix.service }}
+
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        service:
+          - order-service
+          - payment-service
+          - inventory-service
+
+    steps:
+
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Dependencies
+        working-directory: ${{ matrix.service }}
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest
+
+      - name: Run Tests
+        working-directory: ${{ matrix.service }}
+        env:
+          PYTHONPATH: .
+        run: |
+          pytest tests
+
+
+  # ==========================================
+  # JOB 2: BUILD DOCKER + TEST AWS OIDC
+  # ==========================================
+  docker-build-push:
+
+    name: Build and Test AWS - ${{ matrix.service }}
+
+    needs: test
+
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        service:
+          - order-service
+          - payment-service
+          - inventory-service
+
+    steps:
+
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+
+      # ----------------------------------------
+      # AWS OIDC AUTHENTICATION
+      # ----------------------------------------
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_GITHUB_ACTIONS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+
+      # ----------------------------------------
+      # TEST AWS AUTHENTICATION
+      # ----------------------------------------
+      - name: Test AWS Identity
+        run: |
+          aws sts get-caller-identity
+
+
+      # ----------------------------------------
+      # BUILD DOCKER IMAGE
+      # ----------------------------------------
+      - name: Build Docker Image
+        run: |
+          docker build \
+            -t ${{ matrix.service }}:${{ github.sha }} \
+            ./${{ matrix.service }}
+
+
+      # ----------------------------------------
+      # SHOW DOCKER IMAGE
+      # ----------------------------------------
+      - name: Show Docker Images
+        run: |
+          docker images
+
