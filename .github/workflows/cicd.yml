@@ -1,3 +1,4 @@
+```yaml
 name: FastAPI Microservices CI/CD
 
 on:
@@ -11,6 +12,7 @@ on:
 
   workflow_dispatch:
 
+# Required for GitHub OIDC
 permissions:
   contents: read
   id-token: write
@@ -20,7 +22,11 @@ env:
 
 jobs:
 
+  # ==========================================
+  # JOB 1: TEST ALL MICROSERVICES
+  # ==========================================
   test:
+
     name: Test ${{ matrix.service }}
 
     runs-on: ubuntu-latest
@@ -56,8 +62,13 @@ jobs:
         run: |
           pytest tests
 
+
+  # ==========================================
+  # JOB 2: BUILD DOCKER + TEST AWS OIDC
+  # ==========================================
   docker-build-push:
-    name: Build and Push ${{ matrix.service }}
+
+    name: Build and Test AWS - ${{ matrix.service }}
 
     needs: test
 
@@ -75,24 +86,39 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
+
+      # ----------------------------------------
+      # AWS OIDC AUTHENTICATION
+      # ----------------------------------------
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_GITHUB_ACTIONS_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Login to Amazon ECR
-        id: login-ecr
-        uses: aws-actions/amazon-ecr-login@v2
 
+      # ----------------------------------------
+      # TEST AWS AUTHENTICATION
+      # ----------------------------------------
+      - name: Test AWS Identity
+        run: |
+          aws sts get-caller-identity
+
+
+      # ----------------------------------------
+      # BUILD DOCKER IMAGE
+      # ----------------------------------------
       - name: Build Docker Image
         run: |
           docker build \
-            -t ${{ steps.login-ecr.outputs.registry }}/${{ matrix.service }}:${{ github.sha }} \
+            -t ${{ matrix.service }}:${{ github.sha }} \
             ./${{ matrix.service }}
 
-      - name: Push Docker Image
-        run: |
-          docker push \
-            ${{ steps.login-ecr.outputs.registry }}/${{ matrix.service }}:${{ github.sha }}
 
+      # ----------------------------------------
+      # SHOW DOCKER IMAGE
+      # ----------------------------------------
+      - name: Show Docker Images
+        run: |
+          docker images
+```
