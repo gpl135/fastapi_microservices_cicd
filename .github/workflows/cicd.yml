@@ -11,9 +11,9 @@ permissions:
   contents: read
 
 env:
-  AWS_REGION: ap-east-1
+  AWS_REGION: us-east-1
   AWS_ACCOUNT_ID: "412008878951"
-  ECR_REGISTRY: "412008878951.dkr.ecr.ap-east-1.amazonaws.com"
+  ECR_REGISTRY: "412008878951.dkr.ecr.us-east-1.amazonaws.com"
 
 jobs:
   oidc:
