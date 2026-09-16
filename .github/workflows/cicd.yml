@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+
   workflow_dispatch:
 
 permissions:
@@ -12,33 +13,45 @@ permissions:
 
 env:
   AWS_REGION: us-east-1
-  AWS_ACCOUNT_ID: "412008878951"
-  ECR_REGISTRY: "412008878951.dkr.ecr.us-east-1.amazonaws.com"
+  AWS_ACCOUNT_ID: 412008878951
+  ECR_REGISTRY: 412008878951.dkr.ecr.us-east-1.amazonaws.com
 
 jobs:
-  oidc:
-    name: AWS OIDC and ECR Test
+
+  build-and-push:
+    name: Build and Push Docker Images
     runs-on: ubuntu-latest
 
     steps:
-      # Step 1: Checkout source code
+
+      # --------------------------------------------------
+      # 1. Checkout source code
+      # --------------------------------------------------
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      # Step 2: Authenticate GitHub Actions with AWS using OIDC
-      - name: Configure AWS Credentials 
+
+      # --------------------------------------------------
+      # 2. Configure AWS using GitHub OIDC
+      # --------------------------------------------------
+      - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v6.3.0
         with:
           role-to-assume: ${{ secrets.AWS_GITHUB_ACTIONS_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
-          audience: sts.amazonaws.com
 
-      # Step 3: Verify AWS identity
+
+      # --------------------------------------------------
+      # 3. Verify AWS Identity
+      # --------------------------------------------------
       - name: Verify AWS Identity
         run: |
           aws sts get-caller-identity
 
-      # Step 4: Login to Amazon ECR
+
+      # --------------------------------------------------
+      # 4. Login to Amazon ECR
+      # --------------------------------------------------
       - name: Login to Amazon ECR
         run: |
           aws ecr get-login-password \
@@ -48,9 +61,96 @@ jobs:
             --password-stdin \
             $ECR_REGISTRY
 
-      # Step 5: Verify ECR repositories
+
+      # --------------------------------------------------
+      # 5. Verify ECR repositories
+      # --------------------------------------------------
       - name: Verify ECR Repositories
         run: |
           aws ecr describe-repositories \
-            --repository-names order-service payment_service inventory_service \
+            --repository-names \
+              order-service \
+              payment_service \
+              inventory_service \
             --region $AWS_REGION
+
+
+      # --------------------------------------------------
+      # 6. Build Order Service
+      # --------------------------------------------------
+      - name: Build Order Service
+        run: |
+          docker build \
+            -t $ECR_REGISTRY/order-service:${{ github.sha }} \
+            -t $ECR_REGISTRY/order-service:latest \
+            ./order-service
+
+
+      # --------------------------------------------------
+      # 7. Push Order Service
+      # --------------------------------------------------
+      - name: Push Order Service
+        run: |
+          docker push $ECR_REGISTRY/order-service:${{ github.sha }}
+          docker push $ECR_REGISTRY/order-service:latest
+
+
+      # --------------------------------------------------
+      # 8. Build Payment Service
+      # --------------------------------------------------
+      - name: Build Payment Service
+        run: |
+          docker build \
+            -t $ECR_REGISTRY/payment_service:${{ github.sha }} \
+            -t $ECR_REGISTRY/payment_service:latest \
+            ./payment-service
+
+
+      # --------------------------------------------------
+      # 9. Push Payment Service
+      # --------------------------------------------------
+      - name: Push Payment Service
+        run: |
+          docker push $ECR_REGISTRY/payment_service:${{ github.sha }}
+          docker push $ECR_REGISTRY/payment_service:latest
+
+
+      # --------------------------------------------------
+      # 10. Build Inventory Service
+      # --------------------------------------------------
+      - name: Build Inventory Service
+        run: |
+          docker build \
+            -t $ECR_REGISTRY/inventory_service:${{ github.sha }} \
+            -t $ECR_REGISTRY/inventory_service:latest \
+            ./inventory-service
+
+
+      # --------------------------------------------------
+      # 11. Push Inventory Service
+      # --------------------------------------------------
+      - name: Push Inventory Service
+        run: |
+          docker push $ECR_REGISTRY/inventory_service:${{ github.sha }}
+          docker push $ECR_REGISTRY/inventory_service:latest
+
+
+      # --------------------------------------------------
+      # 12. Display pushed images
+      # --------------------------------------------------
+      - name: Display Docker Images
+        run: |
+          echo "=========================================="
+          echo "Docker images pushed successfully"
+          echo "=========================================="
+
+          echo "Order Service:"
+          echo "$ECR_REGISTRY/order-service:${{ github.sha }}"
+
+          echo "Payment Service:"
+          echo "$ECR_REGISTRY/payment_service:${{ github.sha }}"
+
+          echo "Inventory Service:"
+          echo "$ECR_REGISTRY/inventory_service:${{ github.sha }}"
+
+          echo "=========================================="
