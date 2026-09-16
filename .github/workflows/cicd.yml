@@ -34,5 +34,6 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Verify AWS Identity
+      
         run: |
           aws sts get-caller-identity
