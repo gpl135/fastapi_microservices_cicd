@@ -1,15 +1,19 @@
 name: AWS OIDC Authentication Test
 
 on:
+  push:
+    branches:
+      - main
+
   workflow_dispatch:
 
 permissions:
   id-token: write
   contents: read
-  
 
 jobs:
   aws-auth:
+    name: Test AWS OIDC Authentication
     runs-on: ubuntu-latest
 
     steps:
