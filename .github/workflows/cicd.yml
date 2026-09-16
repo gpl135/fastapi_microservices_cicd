@@ -1,11 +1,9 @@
-```yaml
-name: AWS OIDC Authentication Diagnostic
+name: AWS OIDC Test
 
 on:
   push:
     branches:
       - main
-
   workflow_dispatch:
 
 permissions:
@@ -13,36 +11,15 @@ permissions:
   contents: read
 
 jobs:
-  aws-auth:
+  test:
     runs-on: ubuntu-latest
 
     steps:
-
-      - name: Get GitHub OIDC Token
-        id: oidc
-        shell: bash
-        run: |
-          echo "Requesting GitHub OIDC token..."
-
-          TOKEN=$(curl -sSf \
-            -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
-            "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=sts.amazonaws.com" \
-            | python -c "import sys,json; print(json.load(sys.stdin)['value'])")
-
-          echo "OIDC token received."
-
-          PAYLOAD=$(echo "$TOKEN" | cut -d '.' -f2)
-
-          # Add padding for base64 decoding
-          PADDING=$((4 - ${#PAYLOAD} % 4))
-          if [ "$PADDING" -ne 4 ]; then
-            PAYLOAD="${PAYLOAD}$(printf '=%.0s' $(seq 1 $PADDING))"
-          fi
-
-          echo "$PAYLOAD" | base64 -d 2>/dev/null | python -m json.tool
+      - name: Test Trigger
+        run: echo "Workflow triggered"
 
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v5
+        uses: aws-actions/configure-aws-credentials@v6.3.0
         with:
           role-to-assume: ${{ secrets.AWS_GITHUB_ACTIONS_ROLE_ARN }}
           aws-region: ap-south-1
@@ -50,4 +27,3 @@ jobs:
       - name: Verify AWS Identity
         run: |
           aws sts get-caller-identity
-```
