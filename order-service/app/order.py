@@ -18,6 +18,11 @@ class Order(BaseModel):
 orders = []
 
 
+
+@app.get("/index")
+def get_orders() -> str:
+
+    return f'Welcome to the Order Service! We have {len(orders)} orders in the system.'
 @app.get("/")
 def root():
     return {
@@ -50,10 +55,7 @@ def create_order(order: Order):
 
     return new_order
 
-@app.get("/")
-def get_orders() -> str:
 
-    return f'Welcome to the Order Service! We have {len(orders)} orders in the system.'
 
 
 @app.get("/orders")
