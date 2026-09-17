@@ -50,6 +50,11 @@ def create_order(order: Order):
 
     return new_order
 
+@app.get("/")
+def get_orders() -> str:
+
+    return f'Welcome to the Order Service! We have {len(orders)} orders in the system.'
+
 
 @app.get("/orders")
 def get_orders() -> List[dict]:
